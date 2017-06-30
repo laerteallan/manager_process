@@ -3,6 +3,7 @@
 from multiprocessing import Process, cpu_count
 import signal
 import os
+import sys
 from time import sleep
 ERROR_AMOUNT_PROCESS = """Higher than the existing process count.
                           Msg org: Amount Process Exists: %s
@@ -10,21 +11,48 @@ ERROR_AMOUNT_PROCESS = """Higher than the existing process count.
                         """
 ERROR_PROCESS_NOT_FOUND = "Process not found"
 ERROR_PID_MUST_INTEGER = "The pid of the process must be an integer."
-
-
 PATH_SAVE_PID = "/var/run/"
 PATH_PROCESS_ACTIVE = "/proc/"
 PROCESS_PARENT = 'process.pid'
 CMD_PROC_CHILD = 'pgrep -P %s'
 TIMEOUT_DETROY_PROCESS = 0.1
+STDOUT = '/tmp/stdout'
+STDERR = '/tmp/stderr'
 
 
 class ManagerProcesses(object):
     """Class Administration multi-processing."""
 
-    def __init__(self):
+    def __init__(self, p_daemonize=False, p_configure_stdout=False):
         """Class contructor."""
+        if p_configure_stdout:
+            self.__configure_stdout_stderr()
+        if p_daemonize:
+            self.__daemonize()
         self.__list_process = []
+
+    def __configure_stdout_stderr(self):
+        """Set the out Error and the Normal."""
+        sys.stdout.flush()
+        sys.stderr.flush()
+        stdout = file(STDOUT, 'a+')
+        stderr = file(STDERR, 'a+', 0)
+        os.dup2(stdout.fileno(), sys.stdout.fileno())
+        os.dup2(stderr.fileno(), sys.stderr.fileno())
+
+    def __daemonize(self):
+        """Set Daemon Process."""
+        try:
+            pid = os.fork()
+            if pid > 0:
+                sys.exit(0)
+
+        except OSError, error:
+            print error
+            sys.exit(1)
+        os.chdir('/')
+        os.setsid()
+        os.umask(0)
 
     def __create_process(self, p_amount_process=0, p_function=None,
                          p_args=None):
@@ -35,6 +63,7 @@ class ManagerProcesses(object):
         p_args -> Tuple the Args to function
         """
         self.__save_pid_process(os.getpid(), PROCESS_PARENT)
+
         for i in range(p_amount_process):
             name_p = "process" + str(i) + '.pid'
             process = Process(name=name_p, target=p_function,
@@ -71,7 +100,7 @@ class ManagerProcesses(object):
         return False
 
     def kill_all_process_parent_child(self):
-        """method to destroy all the parent and child processes."""
+        """Method to destroy all the parent and child processes."""
         pid_parent = open(PATH_SAVE_PID + PROCESS_PARENT).read()
         list_process_child = self.__return_process_child(pid_parent)
 
@@ -105,6 +134,6 @@ class ManagerProcesses(object):
             sleep(TIMEOUT_DETROY_PROCESS)
             process.exitcode == -signal.SIGTERM
 
-    def return_amount_Process_active(self):
+    def get_amount_process_active(self):
         """Return amount processes active."""
         return len(self.__list_process)
