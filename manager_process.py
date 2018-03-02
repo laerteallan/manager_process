@@ -33,9 +33,10 @@ class ManagerProcesses(object):
 
     def __check_parent_process_active(self):
         """Method that check paret process is active."""
-        pid = open(PATH_SAVE_PID + PROCESS_PARENT).read()
-        if self.__check_process_exist(pid):
-            raise Exception(ERROR_PROCESS_ACTIVE)
+        if os.path.exists(PATH_SAVE_PID + PROCESS_PARENT):
+            pid = open(PATH_SAVE_PID + PROCESS_PARENT).read()
+            if self.__check_process_exist(pid):
+                raise Exception(ERROR_PROCESS_ACTIVE)
 
     def __check_process_exist(self, p_pid):
         """Method check process exist."""
